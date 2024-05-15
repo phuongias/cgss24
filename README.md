@@ -1,0 +1,2 @@
+# cgss24
+Pflichtteil
