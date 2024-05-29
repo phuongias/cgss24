@@ -1,4 +1,4 @@
-import * as THREE from './modules/three.module.js';
+//import * as THREE from './modules/three.module.js'; -> andere js
 
 main();
 
@@ -9,6 +9,8 @@ function main() {
         canvas,
         antialias: true
     });
+
+    var stats = initStats();
 
     var controls = new function () {
         this.rotationSpeed = 0.02;
@@ -21,13 +23,11 @@ function main() {
 
     var gui = new dat.GUI();
     gui.add(controls, 'rotationSpeed', 0, 0.5);
-    gui.add(controls, 'rotY1', 0, 5);
-    gui.add(controls, 'rotZ1', 0, 5);
-    gui.add(controls, 'rotZ2', 0, 5);
-    gui.add(controls, 'rotZ3', 0, 5);
+    gui.add(controls, 'rotY1',  0, 2 * Math.PI);
+    gui.add(controls, 'rotZ1',  0, 2 * Math.PI);
+    gui.add(controls, 'rotZ2',  0, 2 * Math.PI);
+    gui.add(controls, 'rotZ3',  0, 2 * Math.PI);
     //gui.add(controls, 'bouncingSpeed', 0, 0.5);
-
-
 
 
     // create camera
@@ -44,18 +44,11 @@ function main() {
     camera.position.set(0, 8, 30);
 
 
-
-    //var trackballControls = initTrackballControls(camera, renderer);
-    //trackballControls.update(clock.getDelta());
-
-
-
     // create the scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0.3, 0.5, 0.8);
-    const fog = new THREE.Fog("grey", 1,90);
+    const fog = new THREE.Fog("grey", 1, 90);
     scene.fog = fog;
-
 
 
     // GEOMETRY
@@ -65,7 +58,7 @@ function main() {
         cubeSize,
         cubeSize,
         cubeSize
-    );  
+    );
 
     // Create the Sphere
     const sphereRadius = 3;
@@ -79,7 +72,7 @@ function main() {
 
     // Create the upright plane
     const planeWidth = 256;
-    const planeHeight =  128;
+    const planeHeight = 128;
     const planeGeometry = new THREE.PlaneGeometry(
         planeWidth,
         planeHeight
@@ -100,7 +93,7 @@ function main() {
         normalMap: sphereNormalMap
     });
 
-    
+
     const planeTextureMap = textureLoader.load('textures/pebbles.jpg');
     planeTextureMap.wrapS = THREE.RepeatWrapping;
     planeTextureMap.wrapT = THREE.RepeatWrapping;
@@ -116,7 +109,7 @@ function main() {
     const planeMaterial = new THREE.MeshStandardMaterial({
         map: planeTextureMap,
         side: THREE.DoubleSide,
-        normalMap: planeNorm 
+        normalMap: planeNorm
     });
 
     // MESHES
@@ -132,6 +125,40 @@ function main() {
     plane.rotation.x = Math.PI / 2;
     //scene.add(plane);
 
+
+    //Objekt einladen und in die Szene hinzufügen -> Teekanne
+    // Teekanne texture
+    var texture = textureLoader.load('assets/stone.jpg');
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+
+    const loader = new THREE.OBJLoader();
+
+    loader.load('assets/teekanne.obj',
+        function (mesh) {
+            var material = new THREE.MeshPhongMaterial({map: texture});
+
+            mesh.children.forEach(function (child) {
+                child.material = material;
+                child.castShadow = true;
+            });
+
+            mesh.position.set(-15, 2, 0);
+            mesh.rotation.set(-Math.PI / 2, 0, 0);
+            mesh.scale.set(0.005, 0.005, 0.005);
+
+            scene.add(mesh);
+        },
+        function (xhr) {
+            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function (error) {
+            console.log(error);
+            console.log('An error happened');
+        }
+    );
+
+
     //LIGHTS
     const color = 0xffffff;
     const intensity = .7;
@@ -146,8 +173,31 @@ function main() {
     const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     scene.add(ambientLight);
 
+    //shadow
+    cube.castShadow = true;
+    sphere.castShadow = true;
+    plane.receiveShadow = true;
+
+
+    //roboterarm hinzufügen (mit den Segmenten)
+    let h1 = 1;
+    let h2 = 1;
+    let h3 = 1;
+
+    let seg1, seg2, seg3;
+    seg1 = addSeg(scene, h1, 1);
+    seg2 = addSeg(seg1, h2, h1);
+    seg3 = addSeg(seg2, h3, h2);
+
+    seg1.position.set(-25, 0,0);
+
+    //track
+    const trackballControls = initTrackballControls(camera, gl);
+    var clock = new THREE.Clock();
+
+
     // DRAW
-    function draw(time){
+    function draw(time) {
         time *= 0.001;
 
         if (resizeGLToDisplaySize(gl)) {
@@ -166,19 +216,31 @@ function main() {
         sphere.rotation.y += controls.rotationSpeed;
         sphere.rotation.z += controls.rotationSpeed;
 
+        // rotate roboterarm
+        seg1.rotation.y = controls.rotY1;
+        seg1.rotation.z = controls.rotZ1;
+        seg2.rotation.z = controls.rotZ2;
+        seg3.rotation.z = controls.rotZ3;
 
-        light.position.x = 20*Math.cos(time);
-        light.position.y = 20*Math.sin(time);
+        //update track
+        trackballControls.update(clock.getDelta());
+        stats.update();
+
+
+        light.position.x = 20 * Math.cos(time);
+        light.position.y = 20 * Math.sin(time);
         gl.render(scene, camera);
         requestAnimationFrame(draw);
     }
 
     requestAnimationFrame(draw);
+
+
 }
+
 
 // UPDATE RESIZE
 function resizeGLToDisplaySize(gl) {
-
 
     const canvas = gl.domElement;
     const width = canvas.clientWidth;
@@ -189,3 +251,44 @@ function resizeGLToDisplaySize(gl) {
     }
     return needResize;
 }
+
+//Segmente Zeichnen für Roboterarm 
+function addSeg(parent, height, posY) {
+    var axisSphere = new THREE.Group();
+   // axisSphere.rotation.z = 1
+    axisSphere.position.y = posY;
+    parent.add(axisSphere);
+
+    var sphereGeometry = new THREE.SphereGeometry(1, 20, 20); // radius 1 -> diameter 2
+    var sphereMaterial = new THREE.MeshLambertMaterial({color: 0x7777ff});
+    var sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+    // position the sphere
+    sphere.scale.x = 0.5
+    sphere.scale.y = height
+    sphere.scale.z = 0.5
+    sphere.position.x = 0
+    sphere.position.y = height
+    sphere.position.z = 0
+    sphere.castShadow = true;
+
+    sphere.receiveShadow = true;
+
+    axisSphere.add(sphere);
+
+    const tripod = new THREE.AxesHelper(5);
+    axisSphere.add(tripod);
+
+    //Lichtquelle
+    const light = new THREE.PointLight(0xffffff);
+    light.position.set(0,0,0);
+    sphere.add(light);
+
+    return axisSphere;
+}
+
+
+
+
+
+
