@@ -161,7 +161,7 @@ function main() {
 
     //LIGHTS
     const color = 0xffffff;
-    const intensity = .7;
+    const intensity = .0;
     const light = new THREE.DirectionalLight(color, intensity);
     light.target = plane;
     light.position.set(0, 30, 30);
@@ -169,7 +169,7 @@ function main() {
     scene.add(light.target);
 
     const ambientColor = 0xffffff;
-    const ambientIntensity = 0.2;
+    const ambientIntensity = 0;
     const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     scene.add(ambientLight);
 
@@ -190,6 +190,11 @@ function main() {
     seg3 = addSeg(seg2, h3, h2);
 
     seg1.position.set(-25, 0,0);
+
+    //PunktLichtquelle am roboterarm
+    const pointLight = new THREE.PointLight(0xffffff,2,50);
+    light.position.set(0,h3,0);
+    seg3.add(pointLight);
 
     //track
     const trackballControls = initTrackballControls(camera, gl);
@@ -279,10 +284,6 @@ function addSeg(parent, height, posY) {
     const tripod = new THREE.AxesHelper(5);
     axisSphere.add(tripod);
 
-    //Lichtquelle
-    const light = new THREE.PointLight(0xffffff);
-    light.position.set(0,0,0);
-    sphere.add(light);
 
     return axisSphere;
 }
